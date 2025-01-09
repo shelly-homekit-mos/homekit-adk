@@ -26,9 +26,8 @@ includes:
   - HomeKitADK/HAP
 
 libs:
-  - location: https://github.com/mongoose-os-libs/core
+  - location: https://github.com/shelly-homekit-mos/core
   - location: https://github.com/mongoose-os-libs/dns-sd
-  - location: https://github.com/mongoose-os-libs/mbedtls
 
 init_after:
   - bt-common
@@ -56,6 +55,34 @@ config_schema:
   - ["dns_sd.host_name", ""]  # Use device.id
 
 conds:
+  - when: mos.platform == "esp32"
+    libs:
+      - location: https://github.com/shelly-homekit-mos/mbedtls
+    apply:
+      build_vars:
+        ESP_IDF_SDKCONFIG_OPTS: >
+          ${build_vars.ESP_IDF_SDKCONFIG_OPTS}
+            CONFIG_MBEDTLS_CHACHAPOLY_C=y
+            CONFIG_MBEDTLS_CHACHA20_C=y
+            CONFIG_MBEDTLS_POLY1305_C=y
+            CONFIG_MBEDTLS_HKDF_C=y
+
+  - when: mos.platform == "esp32c3"
+    libs:
+      - location: https://github.com/shelly-homekit-mos/mbedtls
+    apply:
+      build_vars:
+        ESP_IDF_SDKCONFIG_OPTS: >
+          ${build_vars.ESP_IDF_SDKCONFIG_OPTS}
+            CONFIG_MBEDTLS_CHACHAPOLY_C=y
+            CONFIG_MBEDTLS_CHACHA20_C=y
+            CONFIG_MBEDTLS_POLY1305_C=y
+            CONFIG_MBEDTLS_HKDF_C=y
+
+  - when: mos.platform == "esp8266"
+    libs:
+      - location: https://github.com/mongoose-os-libs/mbedtls
+
   - when: build_vars.MGOS_HAP_SIMPLE_CONFIG == "1"
     apply:
       config_schema:

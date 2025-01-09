@@ -11,6 +11,7 @@
 #include <string.h>
 #include <stdlib.h>
 
+#define MBEDTLS_ALLOW_PRIVATE_ACCESS
 #include "mbedtls/sha1.h"
 #include "mbedtls/sha256.h"
 #include "mbedtls/sha512.h"
@@ -22,19 +23,49 @@
 #include "mbedtls/ecdh.h"
 #include "mbedtls/bignum.h"
 
+
+#ifndef ESP_PLATFORM
+//define new functions to be backwards compatible on old platforms
+#define mbedtls_sha1_starts mbedtls_sha1_starts_ret
+#define mbedtls_sha1_update mbedtls_sha1_update_ret
+#define mbedtls_sha1_finish mbedtls_sha1_finish_ret
+
+#define mbedtls_sha512_starts mbedtls_sha512_starts_ret
+#define mbedtls_sha512_update mbedtls_sha512_update_ret
+#define mbedtls_sha512_finish mbedtls_sha512_finish_ret
+
+#define mbedtls_sha256_starts mbedtls_sha256_starts_ret
+#define mbedtls_sha256_update mbedtls_sha256_update_ret
+#define mbedtls_sha256_finish mbedtls_sha256_finish_ret
+
+int mbedtls_pkcs5_pbkdf2_hmac_ext(mbedtls_md_type_t md_type, const unsigned char *password, size_t plen, const unsigned char *salt, size_t slen, unsigned int iteration_count, uint32_t key_length, unsigned char *output) {
+    mbedtls_md_context_t ctx;
+    mbedtls_md_init(&ctx);
+    int ret = mbedtls_md_setup(&ctx, mbedtls_md_info_from_type(MBEDTLS_MD_SHA1), 1);
+    HAPAssert(ret == 0);
+    ret = mbedtls_md_starts(&ctx);
+    HAPAssert(ret == 0);
+    ret = mbedtls_pkcs5_pbkdf2_hmac(&ctx, password, plen, salt, slen, iteration_count, key_length, output);
+    HAPAssert(ret == 0);
+    mbedtls_md_free(&ctx);
+    return ret;
+}
+#endif
+
+
 static void sha512_init(mbedtls_sha512_context* ctx) {
     mbedtls_sha512_init(ctx);
-    int ret = mbedtls_sha512_starts_ret(ctx, 0);
+    int ret = mbedtls_sha512_starts(ctx, 0);
     HAPAssert(ret == 0);
 }
 
 static void sha512_update(mbedtls_sha512_context* ctx, const uint8_t* data, size_t size) {
-    int ret = mbedtls_sha512_update_ret(ctx, data, size);
+    int ret = mbedtls_sha512_update(ctx, data, size);
     HAPAssert(ret == 0);
 }
 
 static void sha512_final(mbedtls_sha512_context* ctx, uint8_t md[SHA512_BYTES]) {
-    int ret = mbedtls_sha512_finish_ret(ctx, md);
+    int ret = mbedtls_sha512_finish(ctx, md);
     HAPAssert(ret == 0);
     mbedtls_sha512_free(ctx);
 }
@@ -470,11 +501,11 @@ void HAP_srp_proof_m2(
 void HAP_sha1(uint8_t md[SHA1_BYTES], const uint8_t* data, size_t size) {
     mbedtls_sha1_context ctx;
     mbedtls_sha1_init(&ctx);
-    int ret = mbedtls_sha1_starts_ret(&ctx);
+    int ret = mbedtls_sha1_starts(&ctx);
     HAPAssert(ret == 0);
-    ret = mbedtls_sha1_update_ret(&ctx, data, size);
+    ret = mbedtls_sha1_update(&ctx, data, size);
     HAPAssert(ret == 0);
-    ret = mbedtls_sha1_finish_ret(&ctx, md);
+    ret = mbedtls_sha1_finish(&ctx, md);
     HAPAssert(ret == 0);
     mbedtls_sha1_free(&ctx);
 }
@@ -482,11 +513,11 @@ void HAP_sha1(uint8_t md[SHA1_BYTES], const uint8_t* data, size_t size) {
 void HAP_sha256(uint8_t md[SHA256_BYTES], const uint8_t* data, size_t size) {
     mbedtls_sha256_context ctx;
     mbedtls_sha256_init(&ctx);
-    int ret = mbedtls_sha256_starts_ret(&ctx, 0);
+    int ret = mbedtls_sha256_starts(&ctx, 0);
     HAPAssert(ret == 0);
-    ret = mbedtls_sha256_update_ret(&ctx, data, size);
+    ret = mbedtls_sha256_update(&ctx, data, size);
     HAPAssert(ret == 0);
-    ret = mbedtls_sha256_finish_ret(&ctx, md);
+    ret = mbedtls_sha256_finish(&ctx, md);
     HAPAssert(ret == 0);
     mbedtls_sha256_free(&ctx);
 }
@@ -543,15 +574,8 @@ void HAP_pbkdf2_hmac_sha1(
         const uint8_t* salt,
         size_t salt_len,
         uint32_t count) {
-    mbedtls_md_context_t ctx;
-    mbedtls_md_init(&ctx);
-    int ret = mbedtls_md_setup(&ctx, mbedtls_md_info_from_type(MBEDTLS_MD_SHA1), 1);
+    int ret = mbedtls_pkcs5_pbkdf2_hmac_ext(MBEDTLS_MD_SHA1, password, password_len, salt, salt_len, count, key_len, key);
     HAPAssert(ret == 0);
-    ret = mbedtls_md_starts(&ctx);
-    HAPAssert(ret == 0);
-    ret = mbedtls_pkcs5_pbkdf2_hmac(&ctx, password, password_len, salt, salt_len, count, key_len, key);
-    HAPAssert(ret == 0);
-    mbedtls_md_free(&ctx);
 }
 
 typedef struct {
